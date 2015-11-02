@@ -1,0 +1,163 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Bing Maps + Pixi.js (spritebatch scaled)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+    }
+</style>
+<script src="js/pixi.js"></script>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+    var MM = Microsoft.Maps;
+    var map;
+
+    var renderer;
+    var stage;
+
+    var raster;
+    var container;
+
+    var startPosition;
+    var startWidth;
+
+    function loadMap() {
+
+        map = new MM.Map(document.getElementById("mapDiv"), {
+            center: new MM.Location(45.0, 10),
+            zoom: 5,
+            mapTypeId: Microsoft.Maps.MapTypeId.birdseye,
+            labelOverlay: Microsoft.Maps.LabelOverlay.hidden,
+            credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+        loadCanvas(map);
+
+        MM.Events.addHandler(map, 'viewchange', updatePosition);
+        MM.Events.addHandler(map, 'tiledownloadcomplete', redraw);
+    }
+
+    function loadCanvas(map) {
+
+        var mapDiv = map.getRootElement();
+
+        stage = new PIXI.Stage();
+
+        // create a renderer instance.
+        renderer = PIXI.autoDetectRenderer(map.getWidth(), map.getHeight(), {transparent: true});
+
+        // add the renderer view element to the DOM
+        mapDiv.parentNode.lastChild.appendChild(renderer.view);
+        renderer.view.style.position = "absolute";
+        renderer.view.style.top = "0px";
+        renderer.view.style.left = "0px";
+
+        // create a texture from an image path
+        var texture = PIXI.Texture.fromImage("img/bunny.png");
+
+        container = new PIXI.SpriteBatch();
+
+        for (var i = 0; i < 1000; i++) {
+
+            var bunny = new PIXI.Sprite(texture);
+
+            // center the sprites anchor point
+            bunny.anchor.x = 0.5;
+            bunny.anchor.y = 0.5;
+
+            // move the sprite t the center of the screen
+
+            bunny.lat = 40.0 + Math.random() * 20;
+            bunny.lon = -8.5 + Math.random() * 50;
+
+            var pixelCoordinate = map.tryLocationToPixel(new MM.Location(bunny.lat, bunny.lon), MM.PixelReference.control);
+
+            bunny.position.x = pixelCoordinate.x;
+            bunny.position.y = pixelCoordinate.y;
+
+            container.addChild(bunny);
+
+        }
+
+        startPosition = map.getBounds().getNorthwest();
+        startWidth = getCurrentWidth();
+
+        stage.addChild(container);
+
+        redraw();
+
+    }
+
+
+    function updatePosition(e) {
+
+
+        if(!e.linear)
+        {
+            var currentWidth = getCurrentWidth();
+            var diff = startWidth / currentWidth;
+
+            container.scale.x = diff;
+            container.scale.y = diff;
+
+            if(map.getZoom() < 4) {
+                container.visible = false;
+            }
+            else {
+                container.visible = true;
+            }
+        }
+
+        var divTopLeft = map.tryLocationToPixel(startPosition, MM.PixelReference.control);
+
+        var x = divTopLeft.x;
+        var y = divTopLeft.y;
+
+        container.position.x = x;
+        container.position.y = y;
+
+        redraw(e);
+    }
+
+    function redraw(e) {
+        renderer.render(stage);
+    }
+
+    function getCurrentWidth() {
+
+        var bounds = map.getBounds();
+
+        var nw = bounds.getNorthwest();
+        var se = map.getBounds().getSoutheast();
+
+        return latLongToPixelXY(se.latitude, se.longitude, 10).x - latLongToPixelXY(nw.latitude, nw.longitude, 10).x;
+
+    }
+
+    function latLongToPixelXY(latitude, longitude, levelOfDetail) {
+
+        var sinLatitude = Math.sin(latitude * Math.PI / 180);
+        var pixelX = ((longitude + 180) / 360) * 256 * (2 << (levelOfDetail - 1));
+        var pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * 256 * (2 << (levelOfDetail - 1));
+
+        return {
+            x: pixelX,
+            y: pixelY};
+
+    }
+
+
+</script>
+</body>
+</html>

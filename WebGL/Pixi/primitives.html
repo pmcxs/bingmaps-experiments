@@ -1,0 +1,146 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Bing Maps + Pixi.js (graphics vectorial)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+    }
+</style>
+<script src="js/pixi.js"></script>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+    var MM = Microsoft.Maps;
+    var map;
+
+    var renderer;
+    var stage;
+
+    var graphics;
+    var container;
+
+    var startPosition;
+    var startWidth;
+
+    function loadMap() {
+
+        map = new MM.Map(document.getElementById("mapDiv"), {
+            center: new MM.Location(39.3, -2.8),
+            zoom: 7,
+            mapTypeId: Microsoft.Maps.MapTypeId.birdseye,
+            labelOverlay: Microsoft.Maps.LabelOverlay.hidden,
+            credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+        loadCanvas(map);
+
+        MM.Events.addHandler(map, 'viewchange', updatePosition);
+        MM.Events.addHandler(map, 'viewchangeend', redraw);
+    }
+
+    function loadCanvas(map) {
+
+        var mapDiv = map.getRootElement();
+
+        stage = new PIXI.Stage();
+
+        // create a renderer instance.
+        renderer = PIXI.autoDetectRenderer(map.getWidth(), map.getHeight(), {transparent: true});
+
+        // add the renderer view element to the DOM
+        mapDiv.parentNode.lastChild.appendChild(renderer.view);
+        renderer.view.style.position = "absolute";
+        renderer.view.style.top = "0px";
+        renderer.view.style.left = "0px";
+
+
+        graphics = new PIXI.Graphics();
+        var referencePixel = map.tryLocationToPixel({ latitude: 44, longitude: -9.5}, MM.PixelReference.control);
+
+        graphics.beginFill(0xFFFFFF);
+        for(var i=0; i < 20000; i++) {
+            graphics.drawRect(referencePixel.x + Math.random()* 1200.0, referencePixel.y + Math.random()*900.0, 2, 2);
+        }
+        graphics.endFill();
+
+        stage.addChild(graphics);
+
+        startPosition = map.getBounds().getNorthwest();
+        startWidth = getCurrentWidth();
+
+    }
+
+    function updatePosition(e) {
+
+        if(!e.linear)
+        {
+            var currentWidth = getCurrentWidth();
+            var diff = startWidth / currentWidth;
+
+            graphics.scale.x = diff;
+            graphics.scale.y = diff;
+
+
+            if(map.getZoom() < 4) {
+                graphics.visible = false;
+            }
+            else {
+                graphics.visible = true;
+            }
+        }
+
+        var divTopLeft = map.tryLocationToPixel(startPosition, MM.PixelReference.control);
+
+        var x = divTopLeft.x;
+        var y = divTopLeft.y;
+
+        graphics.position.x = x;
+        graphics.position.y = y;
+
+        renderer.render(stage);
+
+    }
+
+    function redraw(e) {
+        renderer.render(stage);
+    }
+
+
+    function getCurrentWidth() {
+
+        var bounds = map.getBounds();
+
+        var nw = bounds.getNorthwest();
+        var se = map.getBounds().getSoutheast();
+
+        return latLongToPixelXY(se.latitude, se.longitude, 10).x - latLongToPixelXY(nw.latitude, nw.longitude, 10).x;
+
+    }
+
+    function latLongToPixelXY(latitude, longitude, levelOfDetail) {
+
+        var sinLatitude = Math.sin(latitude * Math.PI / 180);
+        var pixelX = ((longitude + 180) / 360) * 256 * (2 << (levelOfDetail - 1));
+        var pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * 256 * (2 << (levelOfDetail - 1));
+
+        return {
+            x: pixelX,
+            y: pixelY};
+
+    }
+
+
+
+</script>
+</body>
+</html>

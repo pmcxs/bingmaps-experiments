@@ -1,0 +1,215 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Bing Maps + Pixi.js (graphics vectorial)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+    }
+</style>
+
+<script src="js/pixi.js"></script>
+
+<script src="js/data.js"></script>
+
+<script src="js/hexagons.js"></script>
+
+<script src="js/mapUtils.js"></script>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+    var MM = Microsoft.Maps;
+    var map;
+
+    var renderer;
+    var stage;
+
+    var graphics;
+    var container;
+
+    var startPosition;
+    var startWidth;
+    var currentHexagons;
+
+    var redrawRequired = true;
+
+
+    var referenceZoom = 10;
+    var referenceEdgeSize = 10;
+
+    function vector(data) {
+        currentHexagons = data;
+    }
+
+    function loadMap() {
+
+        map = new MM.Map(document.getElementById("mapDiv"), {
+            center: new MM.Location(38.95, -9.2),
+            zoom: 12,
+            mapTypeId: Microsoft.Maps.MapTypeId.birdseye,
+            labelOverlay: Microsoft.Maps.LabelOverlay.hidden,
+            credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+        loadCanvas(map);
+
+        MM.Events.addHandler(map, 'viewchange', updatePosition);
+        MM.Events.addHandler(map, 'viewchangeend', updatePosition);
+    }
+
+    function loadCanvas(map) {
+
+        var mapDiv = map.getRootElement();
+
+        stage = new PIXI.Stage();
+
+        // create a renderer instance.
+        renderer = PIXI.autoDetectRenderer(map.getWidth(), map.getHeight(), {transparent: true});
+
+        // add the renderer view element to the DOM
+        mapDiv.parentNode.lastChild.appendChild(renderer.view);
+        renderer.view.style.position = "absolute";
+        renderer.view.style.top = "0px";
+        renderer.view.style.left = "0px";
+
+
+        graphics = new PIXI.Graphics();
+        stage.addChild(graphics);
+
+        startPosition = map.getBounds().getNorthwest();
+        startWidth = getCurrentWidth();
+
+        paintHexagons();
+
+    }
+
+    function paintHexagons() {
+
+        startPosition = map.getBounds().getNorthwest();
+        startWidth = getCurrentWidth();
+        var zoomLevel = map.getZoom();
+        var edgeSize = referenceEdgeSize * Math.pow(2, zoomLevel - referenceZoom);
+        var hexagonDefinition = new hexagons.HexDefinition(edgeSize);
+        var bounds = map.getBounds();
+        var nw = bounds.getNorthwest();
+        var topLeftCorner = mapUtils.latLongToPixelXY(nw.longitude, nw.latitude, zoomLevel);
+
+        graphics.clear();
+        graphics.scale.x = 1;
+        graphics.scale.y = 1;
+        graphics.position.x = 0;
+        graphics.position.y = 0;
+
+        for(var i = 0; i < currentHexagons.length; i++) {
+
+            for(var j = 0 ; j < currentHexagons[i].hexagons.length;j++) {
+
+                var hexagon = currentHexagons[i].hexagons[j];
+
+                var points = hexagonDefinition.getPointsOfHexagon(hexagon.u, hexagon.v);
+
+                var point0x = points[0].x - topLeftCorner.x;
+                var point1x = points[1].x - topLeftCorner.x;
+                var point2x = points[2].x - topLeftCorner.x;
+                var point3x = points[3].x - topLeftCorner.x;
+                var point4x = points[4].x - topLeftCorner.x;
+                var point5x = points[5].x - topLeftCorner.x;
+
+                var point0y = points[0].y - topLeftCorner.y;
+                var point1y = points[1].y - topLeftCorner.y;
+                var point2y = points[2].y - topLeftCorner.y;
+                var point3y = points[3].y - topLeftCorner.y;
+                var point4y = points[4].y - topLeftCorner.y;
+                var point5y = points[5].y - topLeftCorner.y;
+
+                graphics.lineStyle(2, 0xffd900, 1);
+                graphics.moveTo(point0x, point0y);
+                graphics.lineTo(point1x, point1y);
+                graphics.lineTo(point2x, point2y);
+                graphics.lineTo(point3x, point3y);
+                graphics.lineTo(point4x, point4y);
+                graphics.lineTo(point5x, point5y);
+                graphics.lineTo(point0x, point0y);
+            }
+        }
+
+        graphics.endFill();
+        //graphics.cacheAsBitmap = true;
+
+        redrawRequired = false;
+    }
+
+
+    function updatePosition(e) {
+
+        if(!e.linear) //zoom
+        {
+            //redrawRequired = true;
+
+            var currentWidth = getCurrentWidth();
+            var diff = startWidth / currentWidth;
+
+            graphics.scale.x = diff;
+            graphics.scale.y = diff;
+        }
+        else {
+
+            if(redrawRequired) {
+
+                paintHexagons();
+
+            }
+
+
+        }
+
+        var divTopLeft = map.tryLocationToPixel(startPosition, MM.PixelReference.control);
+
+        var x = divTopLeft.x;
+        var y = divTopLeft.y;
+
+        graphics.position.x = x;
+        graphics.position.y = y;
+
+        renderer.render(stage);
+
+    }
+
+
+    function getCurrentWidth() {
+
+        var bounds = map.getBounds();
+
+        var nw = bounds.getNorthwest();
+        var se = map.getBounds().getSoutheast();
+
+        return latLongToPixelXY(se.latitude, se.longitude, referenceZoom).x - latLongToPixelXY(nw.latitude, nw.longitude, referenceZoom).x;
+
+    }
+
+    function latLongToPixelXY(latitude, longitude, levelOfDetail) {
+
+        var sinLatitude = Math.sin(latitude * Math.PI / 180);
+        var pixelX = ((longitude + 180) / 360) * 256 * (2 << (levelOfDetail - 1));
+        var pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * 256 * (2 << (levelOfDetail - 1));
+
+        return {
+            x: pixelX,
+            y: pixelY};
+
+    }
+
+
+
+</script>
+</body>
+</html>

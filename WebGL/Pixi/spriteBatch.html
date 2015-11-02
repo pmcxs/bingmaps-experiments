@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Bing Maps + Pixi.js (spritebatch non-scaled)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+    }
+</style>
+<script src="js/pixi.js"></script>
+
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+
+    var MM = Microsoft.Maps;
+    var map;
+
+    var renderer;
+    var stage;
+
+    var bunnies;
+    var container;
+
+    function loadMap() {
+
+        map = new MM.Map(document.getElementById("mapDiv"), {
+            center: new MM.Location(45.0, 10),
+            zoom: 5,
+            mapTypeId: Microsoft.Maps.MapTypeId.birdseye,
+            labelOverlay: Microsoft.Maps.LabelOverlay.hidden,
+            credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+        loadCanvas(map);
+
+        MM.Events.addHandler(map, 'viewchange', updatePosition);
+        MM.Events.addHandler(map, 'tiledownloadcomplete', redraw);
+
+
+    }
+
+    function loadCanvas(map) {
+
+        var mapDiv = map.getRootElement();
+
+        stage = new PIXI.Stage();
+
+        // create a renderer instance.
+        renderer = PIXI.autoDetectRenderer(map.getWidth(), map.getHeight(), {transparent: true});
+
+        // add the renderer view element to the DOM
+        mapDiv.parentNode.lastChild.appendChild(renderer.view);
+
+        //document.body.appendChild(renderer.view);
+        renderer.view.style.position = "absolute";
+        renderer.view.style.top = "0px";
+        renderer.view.style.left = "0px";
+
+        // create a texture from an image path
+        var texture = PIXI.Texture.fromImage("img/bunny.png");
+
+        bunnies = [];
+        container = new PIXI.SpriteBatch();
+        stage.addChild(container);
+
+        for (var i = 0; i < 1000; i++) {
+
+            var bunny = new PIXI.Sprite(texture);
+
+            // center the sprites anchor point
+            bunny.anchor.x = 0.5;
+            bunny.anchor.y = 0.5;
+
+            // move the sprite t the center of the screen
+
+            bunny.lat = 40.0 + Math.random() * 20;
+            bunny.lon = -8.5 + Math.random() * 50;
+
+            var pixelCoordinate = map.tryLocationToPixel(new MM.Location(bunny.lat, bunny.lon), MM.PixelReference.control);
+
+            bunny.position.x = pixelCoordinate.x;
+            bunny.position.y = pixelCoordinate.y;
+
+            container.addChild(bunny);
+
+            bunnies.push(bunny);
+
+        }
+
+        redraw();
+    }
+
+    function updatePosition(e) {
+
+        for(var i=0; i < bunnies.length; i++) {
+
+            var pixelCoordinate = map.tryLocationToPixel(new MM.Location(bunnies[i].lat, bunnies[i].lon),MM.PixelReference.control);
+
+            bunnies[i].position.x = pixelCoordinate.x;
+            bunnies[i].position.y = pixelCoordinate.y;
+        }
+
+        redraw();
+    }
+
+
+    function redraw(e) {
+        renderer.render(stage);
+    }
+
+
+</script>
+</body>
+</html>

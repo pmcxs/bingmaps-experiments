@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Bing Maps Template</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+
+function loadMap() {
+
+    var MM = Microsoft.Maps;
+    var map = new MM.Map(document.getElementById("mapDiv"), {
+        center: new MM.Location(45.0, 10),
+        zoom: 5,
+        credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+    var canvas = loadCanvas(map);
+
+    MM.Events.addHandler(map, 'viewchange', drawCanvas);
+    MM.Events.addHandler(map, 'viewchangeend', drawCanvas);
+
+
+    function loadCanvas(map) {
+
+        var canvas = document.createElement('canvas');
+        canvas.id = 'pointscanvas'
+        canvas.style.position = 'relative';
+        canvas.height = map.getHeight();
+        canvas.width = map.getWidth();
+
+        var mapDiv = map.getRootElement();
+        mapDiv.parentNode.lastChild.appendChild(canvas);
+        return canvas;
+    }
+
+    function drawCanvas() {
+
+        var context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        var latitude = 38.0;
+        var longitude = -8.5;
+
+        var pixelCoordinate = map.tryLocationToPixel(new MM.Location(latitude, longitude),MM.PixelReference.control);
+
+        context.beginPath();
+        context.arc(pixelCoordinate.x, pixelCoordinate.y, 10, 0, 2 * Math.PI, false);
+        context.fillStyle = 'green';
+        context.fill();
+        context.lineWidth = 5;
+        context.strokeStyle = '#003300';
+        context.stroke();
+
+    }
+
+}
+
+
+
+</script>
+</body>
+</html>

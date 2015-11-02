@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bing Maps + Three.js (cube)</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body onload="loadMap()">
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #000000;
+    }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r70/three.js"></script>
+<script src="js/Projector.js"></script>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+
+<script type="text/javascript">
+
+    var MM = Microsoft.Maps;
+    var map;
+
+    var scene;
+    var camera;
+    var renderer;
+    
+    var cube;
+    
+    var plane;
+    var pivot;
+
+    var startPosition;
+    var startWidth;
+
+    var boxes = [];
+
+    function loadMap() {
+
+        map = new MM.Map(document.getElementById("mapDiv"), {
+            center: new MM.Location(38.5, -8.5),
+            zoom: 10,
+            inertiaIntensity: 0.4,
+            mapTypeId: Microsoft.Maps.MapTypeId.birdseye,
+            labelOverlay: Microsoft.Maps.LabelOverlay.hidden,
+            credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
+
+        loadCanvas(map);
+
+        MM.Events.addHandler(map, 'viewchange', updatePosition);
+    }
+
+    function loadCanvas(map) {
+
+        var mapDiv = map.getRootElement();
+
+        var width = map.getWidth();
+        var height = map.getHeight();
+
+        renderer = new THREE.WebGLRenderer( { alpha: true } );
+        
+        renderer.setSize(width, height);
+        mapDiv.parentNode.lastChild.appendChild( renderer.domElement );
+
+        renderer.domElement.style.position = "absolute";
+        renderer.domElement.style.top = "0px";
+        renderer.domElement.style.left = "0px";
+
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera( 75, width / height, 1, 1000 );
+        camera.position.z = 100;
+
+
+        var geometry = new THREE.BoxGeometry( 5, 5, 6 );
+        var material = new THREE.MeshLambertMaterial( { color: 0xaaaaaa } );
+        
+
+        for(var i=0; i < 1; i++) {
+
+            cube = new THREE.Mesh( geometry, material );
+            cube.position.z = 3;
+            pivot = new THREE.Object3D();
+
+            pivot.lat = 38.5;
+            pivot.lon = -8.5;
+
+            pivot.add( cube );
+            scene.add( pivot );
+
+            boxes.push(cube);
+        }
+
+        
+
+        plane = new THREE.Mesh(new THREE.PlaneBufferGeometry (1000, 1000), new THREE.MeshNormalMaterial({color: 0xFFFF00}));
+        plane.visible = false;
+        scene.add(plane);
+
+
+        var pointLight = new THREE.PointLight(0xffffff);
+        pointLight.position.set(0, 300, 200);
+
+        scene.add(pointLight);
+
+        startPosition = map.getBounds().getNorthwest();
+        startWidth = getCurrentWidth();
+
+
+        window.requestAnimationFrame(render);
+    }
+
+
+    function render() {
+
+        renderer.render( scene, camera );
+    }
+
+    function updatePosition(e) {
+
+        if(!e.linear)
+        {
+            var currentWidth = getCurrentWidth();
+            var diff = startWidth / currentWidth;
+            pivot.scale.set(diff,diff,diff);
+        }
+
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+
+        var latitude = pivot.lat;
+        var longitude = pivot.lon;
+
+        var pixelCoordinate = map.tryLocationToPixel(new MM.Location(latitude, longitude),MM.PixelReference.control);
+       
+        mouse.x = ( pixelCoordinate.x / window.innerWidth ) * 2 - 1;
+        mouse.y = - ( pixelCoordinate.y / window.innerHeight ) * 2 + 1;
+
+        // update the picking ray with the camera and mouse position    
+        raycaster.setFromCamera( mouse, camera);   
+
+        // calculate objects intersecting the picking ray
+        var intersects = raycaster.intersectObject(plane);
+
+        if(intersects.length > 0) {
+
+            pivot.position.x = intersects[0].point.x;
+            pivot.position.y = intersects[0].point.y;
+
+            window.requestAnimationFrame(render);
+        }
+
+
+
+        
+        
+    }
+
+
+    function getCurrentWidth() {
+
+        var bounds = map.getBounds();
+
+        var nw = bounds.getNorthwest();
+        var se = map.getBounds().getSoutheast();
+
+        return latLongToPixelXY(se.latitude, se.longitude, 10).x - latLongToPixelXY(nw.latitude, nw.longitude, 10).x;
+
+    }
+
+    function latLongToPixelXY(latitude, longitude, levelOfDetail) {
+
+        var sinLatitude = Math.sin(latitude * Math.PI / 180);
+        var pixelX = ((longitude + 180) / 360) * 256 * (2 << (levelOfDetail - 1));
+        var pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * 256 * (2 << (levelOfDetail - 1));
+
+        return {
+            x: pixelX,
+            y: pixelY};
+
+    }
+
+
+</script>
+</body>
+</html>
