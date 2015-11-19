@@ -1,0 +1,97 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head>
+    <title>Gamepix - Concept Prototype</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+</head>
+<body>
+
+<div id='mapDiv' style="width:100%; height: 100%;"></div>
+
+<script type="text/javascript" src="http://ecn.dev.virtualearth.net/mapcontrol/mapcontrol.ashx?v=7.0"></script>
+<script type="text/javascript" src="js/jscache.min.js"></script>
+
+<script type="text/javascript" src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.2/underscore-min.js"></script>
+
+<script type="text/javascript" src="js/projections.js"></script>
+<script type="text/javascript" src="js/UtfGridModule.js"></script>
+<script type="text/javascript" src="js/UtfGrid.drawing.js"></script>
+<script type="text/javascript" src="js/gamepix.js"></script>
+
+<script type="text/javascript">
+
+    $(function () {
+
+        var transientData = [];
+
+        var engine = new pixelMapEngine({
+            api: "http://gamepix-devel-cs.cloudapp.net/v1",
+            mapkey: "Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK",
+
+            /**
+             * Temporarily manage a memory array of points that are added to the loaded points
+             */
+            loadDataCallback: function(data) {
+
+                return $.merge(data, transientData);
+            },
+
+            clickHandler: function(occupied, location) {
+
+                if(occupied) {
+                    alert("Pixel already occupied!");
+                }
+                else {
+
+                    var coordinate = location.locCenter;
+                    var data = { lat: Math.round(coordinate.latitude * 100) / 100, lon: Math.round(coordinate.longitude * 100) / 100};
+
+                    var postData = $.param(data);
+
+                    console.log("would post '" + postData + "' to '" + this.api + "/pixels'. Adding to transient data");
+
+                    var pixel = {
+                        coordinate: coordinate,
+                        point: LatLongToPixelXYWithoutRounding(coordinate.latitude, coordinate.longitude, this.pixelZoomLevel),
+                        pixel: LatLongToPixelXY(coordinate.latitude, coordinate.longitude, this.pixelZoomLevel)
+                    };
+
+                    transientData.push(pixel);
+
+                    engine.refreshView();
+
+
+                    /*
+                    var oauthToken = "4d7ae618-a0e5-44fe-aaec-4eebe5eeb169";
+
+                    $.ajax({
+                        type: 'POST',
+                        crossDomain: true,
+                        url: this.api + "/pixels",
+                        data: postData,
+                        headers: {
+                            "Authorization": "bearer " + oauthToken
+                        },
+                        success:function(data) {
+                            //handle success
+
+                        },
+                        error:function() {
+                            //handle error
+                        }
+
+                    });
+                    */
+
+
+                }
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
