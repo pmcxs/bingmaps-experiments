@@ -14,25 +14,20 @@
 <script type="text/javascript">
 
 
-
-
- 
-
 function loadMap() {
 
     var MM = Microsoft.Maps;
 
     var numberOfPushpins = 1000;
 
-    var shiftMode = 0;
-
     var currentOffset;
 
     var topLeftPixelXY;
 
     var startPosition;
+    
     var startWidth;
-
+    
     var map = new MM.Map(document.getElementById("mapDiv"), {
         center: new MM.Location(45.0, 10),
         zoom: 5,
@@ -40,34 +35,26 @@ function loadMap() {
         height: 600,
         credentials:"Ar3o4b8Q6VStAzDIhrvvqPi8MHD0PxmT5YuciLn8psjB6iq7OwyB6UdzLCxpAXPK"});
 
-    loadCanvas(map);
-
-    var canvasImage;
+    var canvas = createCanvas(map);
 
     var data = generateRandomLocations(numberOfPushpins);
 
-
     MM.Events.addHandler(map, 'viewchange', function (e) {
         
-        /*
         if(e.linear) {
-            shiftCanvas();
+            shiftCanvas(canvas);
         }
         else {
-            clearCanvas();
-        }*/
-
-        shiftCanvas(!e.linear);
+            clearCanvas(canvas);
+        }
 
     });
 
-    MM.Events.addHandler(map, 'viewchangeend', function () {
+    MM.Events.addHandler(map, 'viewchangeend', function (e) {
 
-        clearCanvas();
-        drawPoints2(canvas);
+        drawPoints(canvas);
 
     }, 0);
-
 
     function latLongToPixelXY(latitude, longitude, levelOfDetail) {
 
@@ -78,11 +65,8 @@ function loadMap() {
         return {
             x: pixelX,
             y: pixelY};
-
     }
 
-
-   
     function getCurrentWidth() {
 
         var bounds = map.getBounds();
@@ -96,116 +80,45 @@ function loadMap() {
 
 
     /**
+     * Clear the canvas context (although it dosn't remove the canvas itself)
+     */
+    function clearCanvas(canvas) {
+        
+        var context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /**
      * Translates the Canvas, typically as the response to a user panning the map
      */
-    function shiftCanvas(scale) {
-
-        //if(canvasImage == undefined)  return;
+    function shiftCanvas(canvas) {
 
         var context = canvas.getContext("2d");
-
-        if(scale)
-        {
-            var currentWidth = getCurrentWidth();
-            var diff = startWidth / currentWidth;
-
-            console.log(diff);
-
-            //context.scale(diff, diff);
-
-            //container.scale.x = diff;
-            //container.scale.y = diff;
-
-            if(shiftMode == 0) {
-            
-                var newWidth = map.getWidth() * diff;
-                var newHeight = map.getHeight() * diff;
-
-                //canvas.width = map.getWidth() * diff;
-                //canvas.height = map.getHeight() * diff;
-
-                console.log("width: "+ newWidth + " height: " + newHeight);
-
-
-                //$(canvas).css({scale: diff});
-                //$(canvas).css({scale: diff});
-                //$(canvas).css({ transform: 'scale(' + diff + ')' });
-
-                $(canvas).css({width: '=' + newWidth + 'px'});
-                $(canvas).css({height: '-=' + newHeight + 'px'});
-
-
-
-            }
-
-
-        }
-
-        /*
-        var divTopLeft = map.tryLocationToPixel(startPosition, MM.PixelReference.control);
-
-        var x = divTopLeft.x;
-        var y = divTopLeft.y;
-
-        $(canvas).position.x = x;
-        container.position.y = y;
-
-        */
-
-        //$(canvas).css({marginLeft: '0px'});
-        //$(canvas).css({marginTop: '0px'});
-                
-
-
-
+        
         var bounds = map.getBounds();
         var currentTopLeftPixelXY = latLongToPixelXY(bounds.getNorth(), bounds.getWest(), map.getZoom());
-        if(topLeftPixelXY == undefined) topLeftPixelXY = currentTopLeftPixelXY;
 
         var offsetX = currentTopLeftPixelXY.x - topLeftPixelXY.x;
         var offsetY = currentTopLeftPixelXY.y - topLeftPixelXY.y;
 
+        $(canvas).css({marginLeft: '-=' + offsetX + 'px'});
+        $(canvas).css({marginTop: '-=' + offsetY + 'px'});
 
-        if(shiftMode == 0) {
-            $(canvas).css({marginLeft: '-=' + offsetX + 'px'});
-            $(canvas).css({marginTop: '-=' + offsetY + 'px'});
-
-        }
-        else {
-            
-
-            context.clearRect(0, 0, canvasImage.width, canvasImage.height);
-
-            currentOffset.x -= offsetX;
-            currentOffset.y -= offsetY;
-
-            context.putImageData(canvasImage, currentOffset.x, currentOffset.y);
-
-        }
         topLeftPixelXY = currentTopLeftPixelXY;
         
-
     }
 
-    function drawPoints2(canvas) {
+    function drawPoints(canvas) {
 
-        if(shiftMode == 0) {
-            $(canvas).css({marginLeft: '0px'});
-            $(canvas).css({marginTop: '0px'});
+        $(canvas).css({marginLeft: '0px'});
+        $(canvas).css({marginTop: '0px'});
 
-           // $(canvas).css({ transform: 'scale(1)' });
-
-            canvas.height = map.getHeight();
-            canvas.width = map.getWidth();
-        }
-        else {
-            currentOffset = { x:0, y:0 };
-        }
-
+        canvas.height = map.getHeight();
+        canvas.width = map.getWidth();
+       
         var currentZoom = map.getZoom();
 
         var context = canvas.getContext("2d");
-
 
         var bounds = map.getBounds();
 
@@ -213,47 +126,38 @@ function loadMap() {
         var minLatitude = bounds.getSouth();
         var maxLongitude = bounds.getEast();
         var minLongitude = bounds.getWest();
-        
-
+  
         for(var i=0; i < numberOfPushpins; i++) {
-
+          
             if (data[i].latitude >= minLatitude && data[i].latitude <= maxLatitude &&
                 data[i].longitude >= minLongitude && data[i].longitude <= maxLongitude) {
 
-                drawCanvasPushpin(data[i].latitude, data[i].longitude, context);
+                drawCanvasPushpin(data[i].latitude, data[i].longitude, context, currentZoom);
             }
         }
-
+        
+        topLeftPixelXY = latLongToPixelXY(maxLatitude, minLongitude, currentZoom);        
     }
-
-    /**
-     * Clear the canvas context (although it dosn't remove the canvas itself)
-     */
-    function clearCanvas() {
-
-        //if(canvasImage == undefined)  return;
-        //canvas.getContext("2d").clearRect(0, 0, canvasImage.width, canvasImage.height);
-
-        var context = canvas.getContext("2d");
-        context.clearRect(0, 0, canvas.width, canvas.height);
-    }
-
+    
     /*
      * Creates the Canvas html object 
      */
-    function loadCanvas(map) {
+    function createCanvas(map) {
 
-        canvas = document.createElement('canvas');
-        canvas.id = 'pointscanvas'
-        canvas.style.position = 'relative';
-        canvas.height = map.getHeight();
-        canvas.width = map.getWidth();
+        var newCanvas = document.createElement('canvas');
+        newCanvas.id = 'pointscanvas'
+        newCanvas.style.position = 'relative';
+
+        newCanvas.height = map.getHeight();
+        newCanvas.width = map.getWidth();
 
         var mapDiv = map.getRootElement();
-        mapDiv.parentNode.lastChild.appendChild(canvas);
+        mapDiv.parentNode.lastChild.appendChild(newCanvas);
 
         startPosition = map.getBounds().getNorthwest();
         startWidth = getCurrentWidth();
+     
+        return newCanvas;
     }
 
 
@@ -274,28 +178,23 @@ function loadMap() {
     }
 
 
-    function drawPoints() {
-
-        var context = canvas.getContext("2d");
-        context.clearRect(0, 0, canvas.width, canvas.height);
-
-        for(var i=0; i < numberOfPushpins; i++) {
-            drawCanvasPushpin(data[i].latitude, data[i].longitude, context);
-        }
-    }
-
-
-    function drawCanvasPushpin(latitude, longitude, context) {
+    function drawCanvasPushpin(latitude, longitude, context, zoomLevel) {
 
         var pixelCoordinate = map.tryLocationToPixel(new MM.Location(latitude, longitude),MM.PixelReference.control);
 
+        var factor = Math.pow(2,zoomLevel);
+
+        var radius = 0.1 * factor;
+
         context.beginPath();
-        context.arc(pixelCoordinate.x, pixelCoordinate.y, 10, 0, 2 * Math.PI, false);
+        context.arc(pixelCoordinate.x, pixelCoordinate.y, radius, 0, 2 * Math.PI, false);
         context.fillStyle = 'green';
         context.fill();
-        context.lineWidth = 5;
+        context.lineWidth = 0.01 * factor;
         context.strokeStyle = '#003300';
         context.stroke();
+
+
     }
 
 }
